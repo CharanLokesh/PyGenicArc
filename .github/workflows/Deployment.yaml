@@ -1,10 +1,7 @@
 name: Continuous Deployment
 
 on:
-  workflow_run:
-    workflows: ["CI Pipeline"]
-    types:
-      - completed
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -12,7 +9,6 @@ permissions:
 
 jobs:
   build-and-push:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'test' }}
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.sha }}
@@ -20,7 +16,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: test
+          ref: main
 
       - name: Authenticate with AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
