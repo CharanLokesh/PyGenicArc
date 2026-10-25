@@ -45,7 +45,7 @@ def create_user():
     due = request.form["due"]
     print(f"title is: {title}, task is: {task}, and due is: {due}")
     new_task = Todo(title=title, task=task, due=due)
-    print("new_task: {}".format(new_task))
+    print(f"new_task: {new_task}")
     db.session.add(new_task)
     db.session.commit()
     return redirect(url_for("add_task"))
