@@ -78,9 +78,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ap-south-1
 
+      
       - name: Prepare SSM Command
         env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
           ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
@@ -95,24 +95,19 @@ jobs:
           import shlex
 
           with open("scripts/deploy-flask.sh", "rb") as f:
-              encoded = base64.b64encode(f.read()).decode("ascii")
+              encoded_script = base64.b64encode(f.read()).decode("ascii")
 
-          names = [
-              "AWS_REGION",
-              "ECR_REGISTRY",
-              "ECR_REPOSITORY",
-              "IMAGE_TAG",
-          ]
-
-          exports = " ".join(
-              f"{name}={shlex.quote(os.environ[name])}"
-              for name in names
+          image_uri = (
+              f"{os.environ['ECR_REGISTRY']}/"
+              f"{os.environ['ECR_REPOSITORY']}:"
+              f"{os.environ['IMAGE_TAG']}"
           )
 
           command = (
-              f"export {exports}; "
-              f"printf '%s' {shlex.quote(encoded)} "
-              "| base64 -d | bash"
+              "set -euo pipefail; "
+              f"IMAGE_URI={shlex.quote(image_uri)}; "
+              f"printf '%s' {shlex.quote(encoded_script)} "
+              "| base64 -d | bash -s -- \"$IMAGE_URI\""
           )
 
           with open("ssm-parameters.json", "w") as f:
