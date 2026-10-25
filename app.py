@@ -1,13 +1,16 @@
+
 import os
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import SQLAlchemyError
 
-# Use the module name correctly and allow DATABASE_URL to override the default
 app = Flask(__name__)
+
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     "DATABASE_URL", "sqlite:///todo.db"
 )
+
 db = SQLAlchemy(app)
 
 
@@ -25,15 +28,22 @@ with app.app_context():
 @app.route("/", methods=["GET"])
 def index():
     data = Todo.query.all()
-    context = []
-    for dt in data:
-        dd = {"id": dt.id, "title": dt.title, "task": dt.task, "due": dt.due}
-        context.append(dd)
-    print(context)
+
+    context = [
+        {
+            "id": item.id,
+            "title": item.title,
+            "task": item.task,
+            "due": item.due,
+        }
+        for item in data
+    ]
+
+    app.logger.debug("Retrieved %s tasks", len(context))
     return render_template("todo.html", todo=context)
 
 
-@app.route("/add-task")
+@app.route("/add-task", methods=["GET"])
 def add_task():
     return render_template("add_task.html")
 
@@ -43,55 +53,63 @@ def create_user():
     title = request.form["title"]
     task = request.form["task"]
     due = request.form["due"]
-    print(f"title is: {title}, task is: {task}, and due is: {due}")
+
     new_task = Todo(title=title, task=task, due=due)
-    print(f"new_task: {new_task}")
-    db.session.add(new_task)
-    db.session.commit()
+
+    try:
+        db.session.add(new_task)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        app.logger.exception("Failed to create task")
+        return jsonify({"message": "An internal error occurred"}), 500
+
     return redirect(url_for("add_task"))
 
 
 @app.route("/delete/<int:id>", methods=["GET", "DELETE"])
 def delete_user(id):
-    task = Todo.query.get(id)
-    print("task: {}".format(task))
-    if not task:
+    task = db.session.get(Todo, id)
+
+    if task is None:
         return jsonify({"message": "task not found"}), 404
+
     try:
         db.session.delete(task)
         db.session.commit()
-        return jsonify({"message": "task deleted successfully"}), 200
-    except Exception as e:
+    except SQLAlchemyError:
         db.session.rollback()
-        return jsonify({"message": "An error occurred {}".format(e)}), 500
+        app.logger.exception("Failed to delete task")
+        return jsonify({"message": "An internal error occurred"}), 500
+
+    return jsonify({"message": "task deleted successfully"}), 200
 
 
 @app.route("/update_task/<int:id>", methods=["GET", "POST"])
 def update_task(id):
-    task = Todo.query.get_or_404(id)
-    print(task.id)
-    if not task:
-        return jsonify({"message": "task not found"}), 404
+    task = db.get_or_404(Todo, id)
+
     if request.method == "POST":
         task.title = request.form["title"]
         task.task = request.form["task"]
         task.due = request.form["due"]
+
         try:
             db.session.commit()
-            return redirect(url_for("index"))
-        except Exception as e:
-            print(e)
+        except SQLAlchemyError:
             db.session.rollback()
-            return "there is an issue while updating the record"
+            app.logger.exception("Failed to update task")
+            return "There is an issue while updating the record", 500
+
+        return redirect(url_for("index"))
+
     return render_template("update.html", task=task)
 
 
-# Two blank lines before top-level function decorator (PEP 8 / E302)
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
 
-# Two blank lines before main block (PEP 8 / E305)
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5002, debug=True)
