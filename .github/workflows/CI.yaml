@@ -3,9 +3,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: ["test"]
+    branches: ["main"]
   pull_request:
-    branches: ["test"]
+    branches: ["main"]
 
 permissions:
   contents: read
