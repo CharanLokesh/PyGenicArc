@@ -1,23 +1,31 @@
+
 name: CI Pipeline
 
 on:
   push:
-    branches: [ "test" ]
+    branches: ["test"]
   pull_request:
-    branches: [ "test" ]
+    branches: ["test"]
+
+permissions:
+  contents: read
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+    environment: test
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: "3.10"
+          cache: pip
 
       - name: Install Dependencies
         run: |
@@ -31,14 +39,14 @@ jobs:
       - name: Run Pytest
         run: pytest -v
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@vmaster
+      - name: SonarQube Cloud Scan
+        uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: SonarQube Quality Gate Check
-        uses: SonarSource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
+        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        with:
+          pollingTimeoutSec: 600
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
