@@ -26,8 +26,8 @@ jobs:
       - name: Authenticate with AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -40,7 +40,7 @@ jobs:
       - name: Build Docker Image
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ steps.meta.outputs.sha }}
         run: |
           set -euo pipefail
@@ -51,7 +51,7 @@ jobs:
       - name: Push Docker Image to ECR
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ steps.meta.outputs.sha }}
         run: |
           set -euo pipefail
@@ -74,14 +74,14 @@ jobs:
       - name: Authenticate with AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Prepare SSM Command
         env:
-          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
           ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
-          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
           set -euo pipefail
@@ -121,7 +121,7 @@ jobs:
       - name: Send Deployment Command via AWS SSM
         id: deploy
         env:
-          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
         run: |
           set -euo pipefail
 
@@ -137,7 +137,7 @@ jobs:
 
       - name: Wait for Deployment
         env:
-          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
           COMMAND_ID: ${{ steps.deploy.outputs.command_id }}
         run: |
           set -euo pipefail
