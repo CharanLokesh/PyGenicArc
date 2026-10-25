@@ -1,3 +1,71 @@
+import os
+
+from flask import Flask, jsonify, redirect, render_template, request, url_for
+from flask_sqlalchemy import SQLAlchemy
+
+# Use the module name correctly and allow DATABASE_URL to override the default
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+    "DATABASE_URL", "sqlite:///todo.db"
+)
+db = SQLAlchemy(app)
+
+
+class Todo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(50), nullable=False)
+    task = db.Column(db.String(1000), nullable=False)
+    due = db.Column(db.String(100), nullable=False)
+
+
+with app.app_context():
+    db.create_all()
+
+
+@app.route("/", methods=["GET"])
+def index():
+    data = Todo.query.all()
+    context = []
+    for dt in data:
+        dd = {"id": dt.id, "title": dt.title, "task": dt.task, "due": dt.due}
+        context.append(dd)
+    print(context)
+    return render_template("todo.html", todo=context)
+
+
+@app.route("/add-task")
+def add_task():
+    return render_template("add_task.html")
+
+
+@app.route("/submit", methods=["POST"])
+def create_user():
+    title = request.form["title"]
+    task = request.form["task"]
+    due = request.form["due"]
+    print(f"title is: {title}, task is: {task}, and due is: {due}")
+    new_task = Todo(title=title, task=task, due=due)
+    print("new_task: {}".format(new_task))
+    db.session.add(new_task)
+    db.session.commit()
+    return redirect(url_for("add_task"))
+
+
+@app.route("/delete/<int:id>", methods=["GET", "DELETE"])
+def delete_user(id):
+    task = Todo.query.get(id)
+    print("task: {}".format(task))
+    if not task:
+        return jsonify({"message": "task not found"}), 404
+    try:
+        db.session.delete(task)
+        db.session.commit()
+        return jsonify({"message": "task deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "An error occurred {}".format(e)}), 500
+
+
 @app.route("/update_task/<int:id>", methods=["GET", "POST"])
 def update_task(id):
     task = Todo.query.get_or_404(id)
@@ -18,12 +86,12 @@ def update_task(id):
     return render_template("update.html", task=task)
 
 
-# Two blank lines required before top-level function / decorator (E302)
+# Two blank lines before top-level function decorator (PEP 8 / E302)
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
 
-# Two blank lines required after top-level function definition (E305)
+# Two blank lines before main block (PEP 8 / E305)
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5002, debug=True)
