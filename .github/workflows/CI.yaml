@@ -36,8 +36,11 @@ jobs:
       - name: Run Ruff Linting
         run: ruff check .
 
+      
       - name: Run Pytest
-        run: pytest -v
+        run: python -m pytest -v
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: SonarQube Cloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
